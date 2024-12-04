@@ -254,8 +254,8 @@ void *ep_loop_read(void *arg) {
 				exit(EXIT_FAILURE);
 			}
 			else {
-				printf("EP%x(%s_%s): read %d bytes from host\n", ep.bEndpointAddress,
-						transfer_type.c_str(), dir.c_str(), rv);
+				//printf("EP%x(%s_%s): read %d bytes from host\n", ep.bEndpointAddress,
+				//		transfer_type.c_str(), dir.c_str(), rv);
 				io.inner.length = rv;
 
 				if (injection_enabled)
