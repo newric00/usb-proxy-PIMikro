@@ -273,8 +273,10 @@ int send_data(uint8_t endpoint, uint8_t attributes, uint8_t *dataptr,
 				if (incomplete_transfer)
 					//printf("Resent Bulk transfer on EP%02x for attempt %d. length(%d), transferred(%d)\n",
 					//	endpoint, attempt, length, transferred);
+					;
 				if (verbose_level > 2)
 					//printf("Sent %d bytes (Bulk) to EP%02x\n", transferred, endpoint);
+				;
 			}
 			if ((result == LIBUSB_ERROR_PIPE || result == LIBUSB_ERROR_TIMEOUT))
 				libusb_clear_halt(dev_handle, endpoint);
@@ -351,6 +353,7 @@ int receive_data(uint8_t endpoint, uint8_t attributes, uint16_t maxPacketSize,
 			result = libusb_bulk_transfer(dev_handle, endpoint, *dataptr, maxPacketSize, length, timeout);
 			if (result == LIBUSB_SUCCESS && verbose_level > 2)
 				//printf("Received bulk data(%d) bytes\n", *length);
+				;
 			if ((result == LIBUSB_ERROR_PIPE || result == LIBUSB_ERROR_TIMEOUT))
 				libusb_clear_halt(dev_handle, endpoint);
 
