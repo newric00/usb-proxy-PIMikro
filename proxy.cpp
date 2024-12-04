@@ -155,8 +155,8 @@ void *ep_loop_write(void *arg) {
 				exit(EXIT_FAILURE);
 			}
 			else {
-				printf("EP%x(%s_%s): wrote %d bytes to host\n", ep.bEndpointAddress,
-					transfer_type.c_str(), dir.c_str(), rv);
+				;//printf("EP%x(%s_%s): wrote %d bytes to host\n", ep.bEndpointAddress,
+				//	transfer_type.c_str(), dir.c_str(), rv);
 			}
 		}
 		else {
