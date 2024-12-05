@@ -155,8 +155,8 @@ void *ep_loop_write(void *arg) {
 				exit(EXIT_FAILURE);
 			}
 			else {
-				;//printf("EP%x(%s_%s): wrote %d bytes to host\n", ep.bEndpointAddress,
-				//	transfer_type.c_str(), dir.c_str(), rv);
+				printf("EP%x(%s_%s): wrote %d bytes to host\n", ep.bEndpointAddress,
+				transfer_type.c_str(), dir.c_str(), rv);
 			}
 		}
 		else {
@@ -254,10 +254,19 @@ void *ep_loop_read(void *arg) {
 				exit(EXIT_FAILURE);
 			}
 			else {
-				//printf("EP%x(%s_%s): read %d bytes from host\n", ep.bEndpointAddress,
-				//		transfer_type.c_str(), dir.c_str(), rv);
-				io.inner.length = rv;
+				if (ep.bEndpointAddress == 0x02) { // Check if this is EP2 (bulk_out)
+        			printf("EP%x(%s_%s): read %d bytes from host\n", ep.bEndpointAddress,
+                	transfer_type.c_str(), dir.c_str(), rv);
 
+					// Print the data contents
+					printf("Data: ");
+					for (int i = 0; i < rv; i++) {
+						printf("%02x ", io.data[i]); // Assuming 'io.data' contains the data buffer
+					}
+					printf("\n");
+					}
+
+				io.inner.length = rv;
 				if (injection_enabled)
 					injection(io, ep, transfer_type);
 
