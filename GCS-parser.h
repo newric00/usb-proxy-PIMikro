@@ -5,5 +5,5 @@
 #include <vector>
 
 std::string parseGCSCommand(const std::vector<uint8_t>& data);
-
+std::string handleBulkInResponse(const std::vector<uint8_t>& data, bool isNewCommand);
 #endif

@@ -156,8 +156,8 @@ void *ep_loop_write(void *arg) {
 				exit(EXIT_FAILURE);
 			}
 			else {
-				;//printf("EP%x(%s_%s): wrote %d bytes to host\n", ep.bEndpointAddress,
-				//transfer_type.c_str(), dir.c_str(), rv);
+					std::vector<uint8_t> responseFragment(io.data, io.data + rv);
+					handleBulkInResponse(responseFragment, false);
 			}
 		}
 		else {
@@ -255,20 +255,21 @@ void *ep_loop_read(void *arg) {
 				exit(EXIT_FAILURE);
 			}
 			else {
-				if (ep.bEndpointAddress == 0x02) { // Check if this is EP2 (bulk_out)
-   					 //printf("EP%x(%s_%s): read %d bytes from host, Data: ", ep.bEndpointAddress,
-          			 //transfer_type.c_str(), dir.c_str(), rv);
-    				 //for (int i = 0; i < rv; i++) {
-       				 //printf("%02x ", io.data[i]); // Append each byte of data
-   					 //}
-  					 //printf("\n"); // Add a new line at the end
-   					 printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
-          			 transfer_type.c_str(), dir.c_str(), rv);
-
+				if (ep.bEndpointAddress == 0x02) {
+					 //parse bulk out response
 					 std::vector<uint8_t> commandData(io.data, io.data + rv);
-
 					 std::string parsedCommand = parseGCSCommand(commandData);
 
+					 //log aggregated bulk in response
+					 std::string bulkInResponse = handleBulkInResponse({}, true);
+					 if (!bulkInResponse.empty()) {
+						 printf("EP81(bulk_in): wrote %d bytes to host Raw Command: %s\n",
+          			 	static_cast<int>(bulkInResponse.size()), bulkInResponse.c_str());
+					 }
+
+					 //log bulk out response
+   					 printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
+          			 transfer_type.c_str(), dir.c_str(), rv);
 					 printf("%s", parsedCommand.c_str());					 
 					}
 				io.inner.length = rv;
