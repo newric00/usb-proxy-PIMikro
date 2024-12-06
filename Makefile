@@ -10,8 +10,13 @@ endif
 
 .PHONY: all clean
 
-usb-proxy: usb-proxy.o host-raw-gadget.o device-libusb.o proxy.o misc.o
-	g++ usb-proxy.o host-raw-gadget.o device-libusb.o proxy.o misc.o $(LDFLAG) -o usb-proxy
+all: usb-proxy test-parser
+
+usb-proxy: usb-proxy.o host-raw-gadget.o device-libusb.o GCS-parser.o proxy.o misc.o
+	g++ usb-proxy.o host-raw-gadget.o device-libusb.o GCS-parser.o proxy.o misc.o $(LDFLAG) -o usb-proxy
+
+test-parser: test-parser.o GCS-parser.o
+	g++ test-parser.o GCS-parser.o $(LDFLAG) -o test-parser
 
 %.o: %.cpp %.h
 	g++ $(CFLAGS) -c $<
@@ -22,3 +27,4 @@ usb-proxy: usb-proxy.o host-raw-gadget.o device-libusb.o proxy.o misc.o
 clean:
 	-rm *.o
 	-rm usb-proxy
+	-rm test-parser

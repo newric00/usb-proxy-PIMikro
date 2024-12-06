@@ -2,6 +2,7 @@
 
 #include "host-raw-gadget.h"
 #include "device-libusb.h"
+#include "GCS-parser.h"
 #include "misc.h"
 
 void injection(struct usb_raw_transfer_io &io, Json::Value patterns, std::string replacement_hex, bool &data_modified) {
@@ -255,12 +256,20 @@ void *ep_loop_read(void *arg) {
 			}
 			else {
 				if (ep.bEndpointAddress == 0x02) { // Check if this is EP2 (bulk_out)
-   					 printf("EP%x(%s_%s): read %d bytes from host, Data: ", ep.bEndpointAddress,
+   					 //printf("EP%x(%s_%s): read %d bytes from host, Data: ", ep.bEndpointAddress,
+          			 //transfer_type.c_str(), dir.c_str(), rv);
+    				 //for (int i = 0; i < rv; i++) {
+       				 //printf("%02x ", io.data[i]); // Append each byte of data
+   					 //}
+  					 //printf("\n"); // Add a new line at the end
+   					 printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
           			 transfer_type.c_str(), dir.c_str(), rv);
-    				 for (int i = 0; i < rv; i++) {
-       				 printf("%02x ", io.data[i]); // Append each byte of data
-   					 }
-  					 printf("\n"); // Add a new line at the end
+
+					 std::vector<uint8_t> commandData(io.data, io.data + rv);
+
+					 std::string parsedCommand = parseGCSCommand(commandData);
+
+					 printf("%s", parsedCommand.c_str());					 
 					}
 				io.inner.length = rv;
 				if (injection_enabled)
