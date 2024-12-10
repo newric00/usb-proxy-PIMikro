@@ -1,5 +1,7 @@
 LDFLAG=-lusb-1.0 -pthread -ljsoncpp
 
+-include makeconfig.mk
+
 ifndef CFLAGS
 	ifeq ($(TARGET),Debug)
 		CFLAGS=-Wall -Wextra -g
@@ -16,13 +18,13 @@ usb-proxy: usb-proxy.o host-raw-gadget.o device-libusb.o GCS-parser.o proxy.o mi
 	g++ usb-proxy.o host-raw-gadget.o device-libusb.o GCS-parser.o proxy.o misc.o $(LDFLAG) -o usb-proxy
 
 test-parser: test-parser.o GCS-parser.o
-	g++ test-parser.o GCS-parser.o $(LDFLAG) -o test-parser
+	g++ test-parser.o GCS-parser.o -o test-parser
 
 %.o: %.cpp %.h
-	g++ $(CFLAGS) -c $<
+	g++ $(CXXFLAGS) -c $<
 
 %.o: %.cpp
-	g++ $(CFLAGS) -c $<
+	g++ $(CXXFLAGS) -c $<
 
 clean:
 	-rm *.o

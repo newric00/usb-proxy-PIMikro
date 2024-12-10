@@ -1,0 +1,10 @@
+# Example configuration
+# Uncomment and edit the following lines as needed:
+
+# Compiler and flags for macOS
+# CXX := clang++
+# CXXFLAGS := -std=c++17 -I /Library/Developer/CommandLineTools/SDKs/MacOSX15.1.sdk/usr/include/c++/v1
+
+# Compiler and flags for Raspberry Pi OS
+# CXX := g++
+# CXXFLAGS := -std=c++17

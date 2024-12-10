@@ -40,8 +40,8 @@ const std::unordered_map<std::string, GCSCommandSurvey> multiCharCommands = {
     {"DEC", {"Set Deceleration", {"AxisID", "Deceleration"}}},
     {"DEC?", {"Get Deceleration", {"AxisID"}}},
     {"DEL", {"Delay the Command Interpreter", {"Delay"}}}, //ms
-    {"DIO", {"Set Digital Output Line", {"DIOD", "Output"}}}, //1 = high, 0 = Low
-    {"DIO?", {"Get Digital Output Line", {"DIOD"}}},
+    {"DIO", {"Set Digital Output Line", {"DIOID", "Output"}}}, //1 = high, 0 = Low
+    {"DIO?", {"Get Digital Output Line", {"DIOID"}}},
     {"DRC", {"Set Data Recorder Configuration", {"RecTableID", "Source", "RecOption"}}},
     {"DRC?", {"Get Data Recorder Configuration", {"RecTableID"}}},
     {"DRR?", {"Get Recorded Data Values", {"StartPoint", "NumberOfPoints","RecTableID"}}},
