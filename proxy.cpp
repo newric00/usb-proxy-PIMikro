@@ -156,8 +156,16 @@ void *ep_loop_write(void *arg) {
 				exit(EXIT_FAILURE);
 			}
 			else {
-					std::vector<uint8_t> responseFragment(io.data, io.data + rv);
-					handleBulkInResponse(responseFragment, false);
+					//parse bulk in response
+					 std::vector<uint8_t> responseFragment(io.data, io.data + rv);
+					 auto parsedResponse = handleBulkInResponse(responseFragment);
+
+					 //log bulk in response
+					 if (parsedResponse.has_value()) {
+						printf("EP%x(%s_%s): wrote %d bytes to host ", ep.bEndpointAddress,
+						transfer_type.c_str(), dir.c_str(), static_cast<int>(parsedResponse->size()), rv);
+						printf("%s", parsedResponse->c_str());
+					 }
 			}
 		}
 		else {
@@ -255,23 +263,15 @@ void *ep_loop_read(void *arg) {
 				exit(EXIT_FAILURE);
 			}
 			else {
-				if (ep.bEndpointAddress == 0x02) {
-					 //parse bulk out response
-					 std::vector<uint8_t> commandData(io.data, io.data + rv);
-					 std::string parsedCommand = parseGCSCommand(commandData);
+				//parse bulk out response
+				std::vector<uint8_t> commandData(io.data, io.data + rv);
+				std::string parsedCommand = parseGCSCommand(commandData);
 
-					 //log aggregated bulk in response
-					 std::string bulkInResponse = handleBulkInResponse({}, true);
-					 if (!bulkInResponse.empty()) {
-						 printf("EP81(bulk_in): wrote %d bytes to host Raw Command: %s\n",
-          			 	static_cast<int>(bulkInResponse.size()), bulkInResponse.c_str());
-					 }
+				//log bulk out response
+				printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
+				transfer_type.c_str(), dir.c_str(), rv);
+				printf("%s", parsedCommand.c_str());					 
 
-					 //log bulk out response
-   					 printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
-          			 transfer_type.c_str(), dir.c_str(), rv);
-					 printf("%s", parsedCommand.c_str());					 
-					}
 				io.inner.length = rv;
 				if (injection_enabled)
 					injection(io, ep, transfer_type);

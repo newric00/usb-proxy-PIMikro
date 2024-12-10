@@ -5,6 +5,7 @@
 #include <vector>
 #include <optional>
 #include <unordered_map>
+#include <algorithm>
 
 struct GCSCommandSurvey {
     std::string longDescription;
@@ -12,6 +13,7 @@ struct GCSCommandSurvey {
 };
 
 std::string parseGCSCommand(const std::vector<uint8_t>& data);
-std::string handleBulkInResponse(const std::vector<uint8_t>& data, bool isNewCommand);
+std::string cleanResponse(const std::string& response);
+std::optional<std::string> handleBulkInResponse(const std::vector<uint8_t>& data);
 std::optional<GCSCommandSurvey> getCommandInfo(const std::string& command);
 #endif

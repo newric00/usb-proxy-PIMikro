@@ -4,10 +4,11 @@
 #include <vector>
 #include <unordered_map>
 #include <optional>
+#include <algorithm>
 
 //static variables for bulk-in message aggregation
-static std::string bulkInBuffer;
-static int bulkInByteCount = 0;
+static std::string responseBuffer;
+//static int bulkInByteCount = 0;
 
 //command survey
 struct GCSCommandSurvey {
@@ -100,7 +101,7 @@ const std::unordered_map<std::string, GCSCommandSurvey> multiCharCommands = {
     {"TAV", {"Get Analog Input Voltage", {"AnalogInputID"}}},
     {"TIO?", {"Tell Digital I/O Lines", {}}},
     {"TMN?", {"Get Minimum Commandable Position", {"AxisID"}}},
-    {"TMX", {"Get Maximum Commandable Position", {"AxisID"}}},
+    {"TMX?", {"Get Maximum Commandable Position", {"AxisID"}}},
     {"TNR?", {"Get Number of Record Tables", {}}},
     {"TRO", {"Set Trigger Output State", {"TrigOutID", "TrigMode"}}}, //0 = trigger output disabled, 1 = trigger output enabled
     {"TRO?", {"Get Trigger Output State", {"TrigOutID"}}},
@@ -174,20 +175,26 @@ std::string parseGCSCommand(const std::vector<uint8_t>& data) {
     return "Raw command: " + command;
 }
 
-std::string handleBulkInResponse(const std::vector<uint8_t>& data, bool isNewCommand) {
-    if (isNewCommand) {
-        std::string bulkMessage = bulkInBuffer;
-        bulkInBuffer.clear();
-        bulkInByteCount = 0;
-        return bulkMessage;
-    }
-        std::string fragment(data.begin(), data.end());
-        
-        if (!fragment.empty() && fragment[0] == '`') {
-        fragment.erase(0, 1);
-        }
+std::string cleanResponse(const std::string& response) {
+    ///remove backticks (stay alive?) characters from response
+    std::string cleanedResponse;
+    std::copy_if(response.begin(), response.end(), std::back_inserter(cleanedResponse),
+                [](char c) { return c != '`'; });
+    return cleanedResponse;
+}
+std::optional<std::string> handleBulkInResponse(const std::vector<uint8_t>& data) {
+    std::string fragment(data.begin(), data.end());
+    responseBuffer += fragment;
 
-        bulkInBuffer += fragment;
-        bulkInByteCount += data.size();
-        return "";
+    if (!responseBuffer.empty() && responseBuffer.back() == '\n') {
+        std::string aggregatedResponse = responseBuffer;
+        responseBuffer.clear();
+        std::string cleanedResponse = cleanResponse(aggregatedResponse);
+        std::vector<uint8_t> aggregatedData(cleanedResponse.begin(), cleanedResponse.end());
+        std::string parsedResponse = parseGCSCommand(aggregatedData);
+        return parsedResponse;
     }
+    //incomplete response (no terminating LF)
+    //bulkInByteCount += data.size();
+    return std::nullopt;
+}
