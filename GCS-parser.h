@@ -21,7 +21,7 @@ std::string processCommand(
     size_t tokenIndex
 );
 
-std::string parseGCSCommand(const std::vector<uint8_t>& data);
+std::string parseGCSCommand(const std::string& command);
 std::string parseGCSResponse(const std::vector<uint8_t>& data);
 std::string cleanResponse(const std::string& response);
 std::optional<std::string> handleBulkInResponse(const std::vector<uint8_t>& data);

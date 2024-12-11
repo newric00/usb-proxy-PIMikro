@@ -52,20 +52,16 @@ const std::unordered_map<std::string, GCSCommandSurvey> multiCharCommands = {
     {"JDT", {"Set Joystick Default Lookup Table", {"JoystickID", "JoyStickAxis", "LookupTableProfileType"}}}, //1 = linear (default), 2 = parabolic
     {"JLT", {"Fill Joystick Lookup Table", {"JoystickID", "JoyStickAxis", "Address", "Trajectory"}}},
     {"JON", {"Set Joystick Activation Status", {"JoystickID", "ActivationStatus"}}}, //0 = disable, 1 = enable
-    {"JON?", {"Get Joystick Activation Status", {"JoystickID"}}},
     {"JRC", {"Jump Relatively Depending on Condition", {"JumpSize", "CMD?", "Operator", "Value"}}},
     {"MAC", {"Call Macro Function", {"Keyword", "Parameters"}}}, //Keywords = BEG, DEF, DEF?, DEL, END, ERR?, NSTART, START
     {"MEX", {"Stop Macro Execution due to Condition", {"CMD?", "Operator", "Value"}}},
     {"MOV", {"Set Target Position", {"AxisID", "Position"}}},
     {"MVR", {"Set Target Relative to Current Position", {"AxisID", "Distance"}}},
     {"POS", {"Set Real Position", {"AxisID", "Position"}}}, //without motion
-    {"POS?", {"Get Real Position", {"AxisID"}}},
     {"RBT", {"Reboot System", {}}},
     {"RON", {"Set Reference Mode", {"AxisID", "ReferenceOut"}}},
-    {"RON?", {"Get Reference Mode", {"AxisID"}}},
     {"RPA", {"Reset Volatile Memory Parameters", {"ItemID", "ParamID"}}},
     {"RTR", {"Set Record Table Rate", {"RecordTableRate"}}},
-    {"RTR?", {"Get Record Table Rate", {}}},
     {"SAI", {"Set Current Axis Identifiers", {"AxisID", "NewIdentifier"}}},
     {"SEP", {"Set Non-Volatile Memory Parameters", {"Password", "ItemID", "ParamID", "ParamValue"}}}, // Default password = 100
     {"SPA", {"Set Volatile Memory Parameters", {"ItemID", "ParamID", "ParamValue"}}},
@@ -101,11 +97,15 @@ const std::unordered_map<std::string, GCSCommandSurvey> multiCharQueries = {
     {"JAX?", {"Get Axis Controlled by Joystick", {"JoystickID", "JoyStickAxis"}}},
     {"JBS?", {"Query Joystick Button Status", {"JoystickID", "JoyStickButton"}}},
     {"JLT?", {"Get Joystick Lookup Table Values", {"StartAddress", "NumberOfAddressReads", "JoystickID", "JoyStickAxis"}}},
+    {"JON?", {"Get Joystick Activation Status", {"JoystickID"}}},
     {"LIM?", {"Indicate Limit Switches", {"AxisID"}}},
     {"MAC?", {"List Macros", {"MacroName"}}},
     {"MOV?", {"Get Target Position", {"AxisID"}}},
     {"ONT?", {"Get On Target State", {"AxisID"}}},
+    {"POS?", {"Get Real Position", {"AxisID"}}},
     {"RMC?", {"List Running Macros", {}}},
+    {"RON?", {"Get Reference Mode", {"AxisID"}}},
+    {"RTR?", {"Get Record Table Rate", {}}},
     {"SAI?", {"Get Current Axis Identifiers", {"ALL"}}}, //If ALL sent as arguemnet deactivated axes also respond
     {"SPA?", {"Get Volatile Memory Parameters", {"ItemID", "ParamID"}}},
     {"SRG?", {"Query Status Register Value", {"AxisID", "RegisterID"}}},
@@ -169,8 +169,7 @@ std::string processCommand(
     return "Unrecognized command: " + command + "\n";
 }
 
-std::string parseGCSCommand(const std::vector<uint8_t>& data) {
-    std::string command(data.begin(), data.end());
+std::string parseGCSCommand(const std::string& command) {
     std::stringstream ss(command);
     std::string token;
     std::vector<std::string> tokens;
@@ -194,7 +193,12 @@ std::string parseGCSCommand(const std::vector<uint8_t>& data) {
         hostAddress = tokens[tokenIndex++];
     }
 
-    //remaining tokens
+    //at least one token remains?
+    if (tokens.size() <= tokenIndex) {
+        return "Unrecogonized command: no data\n"; 
+    }
+
+    //remaining tokens contain command and arguments
     //single byte commands
     if (tokens.size() == 1 + tokenIndex && tokens[tokenIndex].size() == 1) {
         uint8_t singleByte = static_cast<uint8_t>(tokens[tokenIndex][0]);

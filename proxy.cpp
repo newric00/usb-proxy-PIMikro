@@ -199,6 +199,8 @@ void *ep_loop_read(void *arg) {
 	std::deque<usb_raw_transfer_io> *data_queue = thread_info.data_queue;
 	std::mutex *data_mutex = thread_info.data_mutex;
 
+	static std::string commandBuffer; //for aggregating single-byte commands
+
 	printf("Start reading thread for EP%02x, thread id(%d)\n",
 		ep.bEndpointAddress, gettid());
 
@@ -265,12 +267,25 @@ void *ep_loop_read(void *arg) {
 			else {
 				//parse bulk out response
 				std::vector<uint8_t> commandData(io.data, io.data + rv);
-				std::string parsedCommand = parseGCSCommand(commandData);
+				std::string commandFragment(commandData.begin(), commandData.end());
 
-				//log bulk out response
-				printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
-				transfer_type.c_str(), dir.c_str(), rv);
-				printf("%s", parsedCommand.c_str());					 
+				if (std::all_of(commandFragment.begin(), commandFragment.end(), [](unsigned char c) { return std::isdigit(c) || std::isspace(c); })) {
+					commandBuffer += commandFragment;
+
+				if (commandBuffer.size() >= 60 {
+					printf("Command too long\n");
+					commandBuffer.clear()
+				})
+				} else {
+					std::string aggregatedCommand = commandBuffer + commandFragment;
+					commandBuffer.clear();
+					std::string parsedCommand = parseGCSCommand(aggregatedCommand);
+
+					//log bulk out response
+					printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
+					transfer_type.c_str(), dir.c_str(), rv);
+					printf("%s", parsedCommand.c_str());
+				}					 
 
 				io.inner.length = rv;
 				if (injection_enabled)
