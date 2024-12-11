@@ -91,6 +91,26 @@ void injection(struct usb_raw_transfer_io &io, struct usb_endpoint_descriptor ep
 	}
 }
 
+// void generateBulkInjection(struct usb_raw_transfer_io &io, struct usb_endpoint_descriptor ep, const std::string&message) {
+// 	//convert message to raw bytes
+// 	std::vector<uint8_t> messageBytes(message.begin(), message.end());
+
+// 	//ensure message length is within range
+// 	if (messageBytes.size() > sizeof(io.data)) {
+// 		printf("Injection ignored: Injection exceeds maximum size");
+// 		return;
+// 	}
+
+// 	//fill USB transfer buffer with message
+// 	for (size_t i = 0; i < messageBytes.size(); ++i) {
+// 		io.data[i] = messageBytes[i];
+// 	}
+// 	io.inner.length = messageBytes.size();
+
+// 	printf("Message injected %s\n", message.c_str());
+
+// }
+
 void printData(struct usb_raw_transfer_io io, __u8 bEndpointAddress, std::string transfer_type, std::string dir) {
 	printf("Sending data to EP%x(%s_%s):", bEndpointAddress,
 		transfer_type.c_str(), dir.c_str());
@@ -111,6 +131,10 @@ void *ep_loop_write(void *arg) {
 	std::string dir = thread_info.dir;
 	std::deque<usb_raw_transfer_io> *data_queue = thread_info.data_queue;
 	std::mutex *data_mutex = thread_info.data_mutex;
+	
+	//injection queue
+	std::deque<std::string> *injectionQueue = thread_info.injectionQueue;
+	std::mutex *injectionMutex = thread_info.injectionMutex;
 
 	printf("Start writing thread for EP%02x, thread id(%d)\n",
 		ep.bEndpointAddress, gettid());
@@ -182,6 +206,34 @@ void *ep_loop_write(void *arg) {
 			if (data)
 				delete[] data;
 		}
+
+		injectionMutex->lock();
+		if (!injectionQueue->empty()) {
+			std::string injectionMessage = injectionQueue->front();
+			injectionQueue->pop_front();
+
+			//prepare the injection message
+			size_t injectionLength = injectionMessage.size();
+			unsigned char *injectionData = new unsigned char[injectionLength];
+			memcpy(injectionData,injectionMessage.c_str(), injectionLength);
+
+			//send injected message
+			int rv = send_data(ep.bEndpointAddress,
+							ep.bmAttributes,
+							injectionData,
+							injectionLength,
+							USB_REQUEST_TIMEOUT);
+
+			if (rv < 0) {
+				perror("Error injecting message");
+			} else {
+				printf("Injected message: %s\n", injectionMessage.c_str());
+			}
+
+			if (injectionData)
+				delete[] injectionData;
+		}
+		injectionMutex->unlock();	
 	}
 
 	printf("End writing thread for EP%02x, thread id(%d)\n",
@@ -198,6 +250,10 @@ void *ep_loop_read(void *arg) {
 	std::string dir = thread_info.dir;
 	std::deque<usb_raw_transfer_io> *data_queue = thread_info.data_queue;
 	std::mutex *data_mutex = thread_info.data_mutex;
+
+	//injection queue
+	std::deque<std::string> *injectionQueue = thread_info.injectionQueue;
+	std::mutex *injectionMutex = thread_info.injectionMutex;
 
 	static std::string commandBuffer; //for aggregating single-byte commands
 
@@ -272,10 +328,15 @@ void *ep_loop_read(void *arg) {
 				if (std::all_of(commandFragment.begin(), commandFragment.end(), [](unsigned char c) { return std::isdigit(c) || std::isspace(c); })) {
 					commandBuffer += commandFragment;
 
-				if (commandBuffer.size() >= 60 {
-					printf("Command too long\n");
-					commandBuffer.clear()
-				})
+					if (commandBuffer.size() >= 60) {
+						//command too long, enqueue ERR? query
+						std::string errorQuery = "ERR?\n";
+						injectionMutex->lock();
+						injectionQueue->push_back(errorQuery);
+						injectionMutex->unlock();
+						commandBuffer.clear();
+					}
+
 				} else {
 					std::string aggregatedCommand = commandBuffer + commandFragment;
 					commandBuffer.clear();
@@ -322,6 +383,10 @@ void process_eps(int fd, int config, int interface, int altsetting) {
 		ep->thread_info.endpoint = ep->endpoint;
 		ep->thread_info.data_queue = new std::deque<usb_raw_transfer_io>;
 		ep->thread_info.data_mutex = new std::mutex;
+
+		//injection queue memory allocation
+		ep->thread_info.injectionQueue = new std::deque<std::string>;
+		ep->thread_info.injectionMutex = new std::mutex;
 
 		switch (usb_endpoint_type(&ep->endpoint)) {
 		case USB_ENDPOINT_XFER_ISOC:
@@ -394,6 +459,10 @@ void terminate_eps(int fd, int config, int interface, int altsetting) {
 
 		delete ep->thread_info.data_queue;
 		delete ep->thread_info.data_mutex;
+
+		//injection queue memory deallocation
+		delete ep->thread_info.injectionQueue;
+		delete ep->thread_info.injectionMutex;
 	}
 
 	please_stop_eps = false;

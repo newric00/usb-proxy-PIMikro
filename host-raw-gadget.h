@@ -108,6 +108,10 @@ struct thread_info {
 	std::string			dir;
 	std::deque<usb_raw_transfer_io> *data_queue;
 	std::mutex			*data_mutex;
+
+	//for generated injections
+	std::deque<std::string> *injectionQueue;
+	std::mutex *injectionMutex;
 };
 
 struct raw_gadget_endpoint {
