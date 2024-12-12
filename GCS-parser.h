@@ -12,6 +12,11 @@ struct GCSCommandSurvey {
     std::vector<std::string> argumentNames;
 };
 
+struct ParsedResponse {
+    std::string response;
+    size_t responseLength;
+};
+
 std::string processCommand(
     const std::string& command,
     const std::string& controllerAddress,
@@ -22,8 +27,8 @@ std::string processCommand(
 );
 
 std::string parseGCSCommand(const std::string& command);
-std::string parseGCSResponse(const std::vector<uint8_t>& data);
+ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data);
 std::string cleanResponse(const std::string& response);
-std::optional<std::string> handleBulkInResponse(const std::vector<uint8_t>& data);
+std::optional<ParsedResponse> handleBulkInResponse(const std::vector<uint8_t>& data);
 std::optional<GCSCommandSurvey> getCommandInfo(const std::string& command);
 #endif

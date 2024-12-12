@@ -5,16 +5,17 @@
 #include <unordered_map>
 #include <optional>
 #include <algorithm>
+#include "GCS-parser.h"
 
 //static variables for bulk-in message aggregation
 static std::string responseBuffer;
 //static int bulkInByteCount = 0;
 
 //command survey
-struct GCSCommandSurvey {
-    std::string longDescription;
-    std::vector<std::string> argumentNames;
-};
+//struct GCSCommandSurvey {
+//    std::string longDescription;
+//    std::vector<std::string> argumentNames;
+//};
 
 //single-byte queries
 const std::unordered_map<uint8_t, GCSCommandSurvey> singleByteCommands = {
@@ -223,13 +224,14 @@ std::string cleanResponse(const std::string& response) {
     return cleanedResponse;
 }
 
-std::string parseGCSResponse(const std::vector<uint8_t>& data) {
+ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data) {
     std::string response(data.begin(), data.end());
-    response = cleanResponse(response);
-    return "Response: " + response;
+    std::string cleanedResponse = cleanResponse(response);
+    size_t responseLength = cleanedResponse.size();
+    return {"Response: " + cleanedResponse, responseLength};
 }
 
-std::optional<std::string> handleBulkInResponse(const std::vector<uint8_t>& data) {
+std::optional<ParsedResponse> handleBulkInResponse(const std::vector<uint8_t>& data) {
     std::string responseFragment(data.begin(), data.end());
     static std::string aggregatedResponse;
     
@@ -247,7 +249,7 @@ std::optional<std::string> handleBulkInResponse(const std::vector<uint8_t>& data
         if (aggregatedResponse.size() > 1 && aggregatedResponse[aggregatedResponse.size() - 2] != ' ') {
             //std::string cleanedResponse = cleanResponse(aggregatedResponse);
             std::vector<uint8_t> aggregatedData(aggregatedResponse.begin(), aggregatedResponse.end());
-            std::string parsedResponse = parseGCSResponse(aggregatedData);
+            ParsedResponse parsedResponse = parseGCSResponse(aggregatedData);
             aggregatedResponse.clear();
             return parsedResponse;
         }

@@ -91,26 +91,6 @@ void injection(struct usb_raw_transfer_io &io, struct usb_endpoint_descriptor ep
 	}
 }
 
-// void generateBulkInjection(struct usb_raw_transfer_io &io, struct usb_endpoint_descriptor ep, const std::string&message) {
-// 	//convert message to raw bytes
-// 	std::vector<uint8_t> messageBytes(message.begin(), message.end());
-
-// 	//ensure message length is within range
-// 	if (messageBytes.size() > sizeof(io.data)) {
-// 		printf("Injection ignored: Injection exceeds maximum size");
-// 		return;
-// 	}
-
-// 	//fill USB transfer buffer with message
-// 	for (size_t i = 0; i < messageBytes.size(); ++i) {
-// 		io.data[i] = messageBytes[i];
-// 	}
-// 	io.inner.length = messageBytes.size();
-
-// 	printf("Message injected %s\n", message.c_str());
-
-// }
-
 void printData(struct usb_raw_transfer_io io, __u8 bEndpointAddress, std::string transfer_type, std::string dir) {
 	printf("Sending data to EP%x(%s_%s):", bEndpointAddress,
 		transfer_type.c_str(), dir.c_str());
@@ -184,11 +164,20 @@ void *ep_loop_write(void *arg) {
 					 std::vector<uint8_t> responseFragment(io.data, io.data + rv);
 					 auto parsedResponse = handleBulkInResponse(responseFragment);
 
+					//std::cout << "Raw Response (hex:) ";
+					//for (const char& c : *parsedResponse) {
+					//	std::cout << std::hex << static_cast<int>(static_cast<unsigned char>(c)) << " ";
+					//}
+					//std::cout << std::endl;
+
+					//std::cout << "rv: " << rv;
+					//std::cout << std::endl;
+
 					 //log bulk in response
 					 if (parsedResponse.has_value()) {
 						printf("EP%x(%s_%s): wrote %d bytes to host ", ep.bEndpointAddress,
-						transfer_type.c_str(), dir.c_str(), static_cast<int>(parsedResponse->size()), rv);
-						printf("%s", parsedResponse->c_str());
+						transfer_type.c_str(), dir.c_str(), parsedResponse->responseLength);
+						printf("%s", parsedResponse->response.c_str());
 					 }
 			}
 		}
@@ -207,10 +196,11 @@ void *ep_loop_write(void *arg) {
 				delete[] data;
 		}
 
-		injectionMutex->lock();
 		if (!injectionQueue->empty()) {
+			injectionMutex->lock();
 			std::string injectionMessage = injectionQueue->front();
 			injectionQueue->pop_front();
+			injectionMutex->unlock();
 
 			//prepare the injection message
 			size_t injectionLength = injectionMessage.size();
@@ -218,22 +208,23 @@ void *ep_loop_write(void *arg) {
 			memcpy(injectionData,injectionMessage.c_str(), injectionLength);
 
 			//send injected message
-			int rv = send_data(ep.bEndpointAddress,
-							ep.bmAttributes,
-							injectionData,
-							injectionLength,
-							USB_REQUEST_TIMEOUT);
+			//std::cout << std::hex << ep.bEndpointAddress << " | Message: " << injectionMessage << std::endl;
+			int rv = send_data(ep.bEndpointAddress, ep.bmAttributes, injectionData, injectionLength, USB_REQUEST_TIMEOUT);
 
 			if (rv < 0) {
 				perror("Error injecting message");
 			} else {
-				printf("Injected message: %s\n", injectionMessage.c_str());
+				std::string parsedInjection = parseGCSCommand(injectionMessage);
+
+				//log injected command
+				printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
+				transfer_type.c_str(), dir.c_str(), static_cast<int>(injectionLength));
+				printf("Injected %s", parsedInjection.c_str());
 			}
 
 			if (injectionData)
 				delete[] injectionData;
-		}
-		injectionMutex->unlock();	
+		}			
 	}
 
 	printf("End writing thread for EP%02x, thread id(%d)\n",
@@ -321,9 +312,17 @@ void *ep_loop_read(void *arg) {
 				exit(EXIT_FAILURE);
 			}
 			else {
-				//parse bulk out response
+				//parse bulk out command
 				std::vector<uint8_t> commandData(io.data, io.data + rv);
 				std::string commandFragment(commandData.begin(), commandData.end());
+
+				//TESTING
+				if (commandFragment == "GO\n") {
+						std::string moveCommand = "ERR?\n";
+						injectionMutex->lock();
+						injectionQueue->push_back(moveCommand);
+						injectionMutex->unlock();
+				}
 
 				if (std::all_of(commandFragment.begin(), commandFragment.end(), [](unsigned char c) { return std::isdigit(c) || std::isspace(c); })) {
 					commandBuffer += commandFragment;
@@ -342,7 +341,7 @@ void *ep_loop_read(void *arg) {
 					commandBuffer.clear();
 					std::string parsedCommand = parseGCSCommand(aggregatedCommand);
 
-					//log bulk out response
+					//log bulk out command
 					printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
 					transfer_type.c_str(), dir.c_str(), rv);
 					printf("%s", parsedCommand.c_str());
