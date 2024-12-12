@@ -9,13 +9,6 @@
 
 //static variables for bulk-in message aggregation
 static std::string responseBuffer;
-//static int bulkInByteCount = 0;
-
-//command survey
-//struct GCSCommandSurvey {
-//    std::string longDescription;
-//    std::vector<std::string> argumentNames;
-//};
 
 //single-byte queries
 const std::unordered_map<uint8_t, GCSCommandSurvey> singleByteCommands = {
@@ -170,7 +163,8 @@ std::string processCommand(
     return "Unrecognized command: " + command + "\n";
 }
 
-std::string parseGCSCommand(const std::string& command) {
+ParsedCommand parseGCSCommand(const std::string& command) {
+
     std::stringstream ss(command);
     std::string token;
     std::vector<std::string> tokens;
@@ -180,7 +174,7 @@ std::string parseGCSCommand(const std::string& command) {
     }
 
     if (tokens.empty()) {
-        return "Unrecogonized command: no data\n";
+        return {"???","Unrecogonized command: no data\n"};
     }
     //check if controller or contoller host addresses supplied
     size_t tokenIndex = 0;
@@ -196,7 +190,7 @@ std::string parseGCSCommand(const std::string& command) {
 
     //at least one token remains?
     if (tokens.size() <= tokenIndex) {
-        return "Unrecogonized command: no data\n"; 
+        return {"???","Unrecogonized command: no data\n"}; 
     }
 
     //remaining tokens contain command and arguments
@@ -204,16 +198,18 @@ std::string parseGCSCommand(const std::string& command) {
     if (tokens.size() == 1 + tokenIndex && tokens[tokenIndex].size() == 1) {
         uint8_t singleByte = static_cast<uint8_t>(tokens[tokenIndex][0]);
         auto commandInfo = getCommandInfo(std::string(1, static_cast<char>(singleByte)));
-        return processCommand("#" + std::to_string(singleByte), controllerAddress, hostAddress, commandInfo, tokens, tokenIndex + 1);
+        return {"#" + std::to_string(singleByte),
+                processCommand("#" + std::to_string(singleByte), controllerAddress, hostAddress, commandInfo, tokens, tokenIndex + 1)};
     }
     //multicharacter commands
     if (tokens.size() > tokenIndex) {
         std::string commandMnemonic = tokens[tokenIndex++];
         auto commandInfo = getCommandInfo(commandMnemonic);
-        return processCommand(commandMnemonic, controllerAddress, hostAddress, commandInfo, tokens, tokenIndex);
+        return {commandMnemonic,
+                processCommand(commandMnemonic, controllerAddress, hostAddress, commandInfo, tokens, tokenIndex)};
     }
     //command not recognized
-    return "Unrecogonized command: " + command + "\n";
+    return {"???","Unrecogonized command: " + command + "\n"};
 }
 
 std::string cleanResponse(const std::string& response) {

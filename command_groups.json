@@ -1,0 +1,24 @@
+{
+  "groups": {
+    "MovementCommands": {
+      "commands": ["#24", "BRA", "FED", "FNL", "FPL", "FRF", "GOH", "HLT", "MOV", "MVR", "STE", "STP", "VEL"],
+      "color": "purple"
+    },
+    "MovementQueries": {
+      "commands": ["#5", "BRA?", "MOV?", "ONT?", "POS?", "VEL?"],
+      "color": "blue"
+    },
+    "JoyStickCommands": {
+      "commands": ["JAS", "JAX", "JAX?", "JBS", "JDT", "JLT", "JLT?", "JON", "JON?"],
+      "color": "grey"
+    },
+    "MacroCommands": {
+      "commands": ["#8", "ADD", "CPY", "DEL", "JRC", "MAC", "MAC?", "MEX?", "RMC?", "VAR", "VAR?", "WAC"],
+      "color": "green"
+    },
+    "ErrorCommands": {
+        "commands": ["ERR?"],
+        "color": "gold"
+    }
+  }
+}

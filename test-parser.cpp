@@ -1,57 +1,31 @@
 #include <iostream>
-#include <string>
 #include "GCS-parser.h"
+#include "command-utils.h"  // Includes printCommand and other utilities
 
-void testSingleByteCommands() {
-    std::cout << "Testing Single-Byte Commands:\n";
+void testPrintCommand(const std::string &command) {
+    // Use ParsedCommand to create a structure for testing
+    ParsedCommand testCommand;
+    testCommand.command = command;              // Raw command for determining color
+    testCommand.decoratedCommand = "Command: " + command;  // Decorated command for printing
 
-    std::string command1 = "\x04"; // Example: #4 (single-byte)
-    auto result1 = parseGCSCommand(command1);
-    std::cout << "Input: #4\nParsed Output: " << result1 << "\n\n";
-
-    std::string commandWithAddress = "1 \x04"; // Example: 1 #4
-    auto result2 = parseGCSCommand(commandWithAddress);
-    std::cout << "Input: 1 #4\nParsed Output: " << result2 << "\n\n";
-}
-
-void testMultiCharCommands() {
-    std::cout << "Testing Multi-Character Commands:\n";
-
-    std::string command1 = "ERR?";
-    auto result1 = parseGCSCommand(command1);
-    std::cout << "Input: ERR?\nParsed Output: " << result1 << "\n\n";
-
-    std::string addressedCommand = "1 0 ERR?";
-    auto result2 = parseGCSCommand(addressedCommand);
-    std::cout << "Input: 1 0 ERR?\nParsed Output: " << result2 << "\n\n";
-}
-
-void testInvalidCommands() {
-    std::cout << "Testing Invalid Commands:\n";
-
-    std::string invalidCommand = "XYZ";
-    auto result = parseGCSCommand(invalidCommand);
-    std::cout << "Input: XYZ\nParsed Output: " << result << "\n\n";
-}
-
-void testResponseParsing() {
-    std::cout << "Testing Response Parsing:\n";
-
-    std::vector<uint8_t> response1 = {'0', '\n'}; // Valid response
-    auto parsedResponse = parseGCSResponse(response1);
-    std::cout << "Input: 0\nParsed Output: " << parsedResponse.response
-              << " | Length: " << parsedResponse.responseLength << "\n\n";
-
-    std::vector<uint8_t> responseWithBackticks = {'`', '0', '\n'};
-    auto parsedResponse2 = parseGCSResponse(responseWithBackticks);
-    std::cout << "Input: `0\nParsed Output: " << parsedResponse2.response
-              << " | Length: " << parsedResponse2.responseLength << "\n\n";
+    printCommand(testCommand);  // Test printing
+    std::cout << std::endl; // For spacing
 }
 
 int main() {
-    testSingleByteCommands();
-    testMultiCharCommands();
-    testInvalidCommands();
-    testResponseParsing();
+    std::cout << "Testing GCS Command Parsing and Colored Printing" << std::endl;
+
+    // Example commands to test
+    std::string command1 = "ERR?";
+    std::string command2 = "MOV";
+    std::string command3 = "#8";
+    std::string command4 = "INVALID";
+
+    // Test with printCommand,
+    testPrintCommand(command1);
+    testPrintCommand(command2);
+    testPrintCommand(command3);
+    testPrintCommand(command4);
+
     return 0;
 }

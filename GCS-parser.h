@@ -12,6 +12,11 @@ struct GCSCommandSurvey {
     std::vector<std::string> argumentNames;
 };
 
+struct ParsedCommand {
+    std::string command; //command byte code or mnemonic
+    std::string decoratedCommand; //response with parsed arguments and long description
+};
+
 struct ParsedResponse {
     std::string response;
     size_t responseLength;
@@ -25,8 +30,7 @@ std::string processCommand(
     const std::vector<std::string>& tokens,
     size_t tokenIndex
 );
-
-std::string parseGCSCommand(const std::string& command);
+ParsedCommand parseGCSCommand(const std::string& command);
 ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data);
 std::string cleanResponse(const std::string& response);
 std::optional<ParsedResponse> handleBulkInResponse(const std::vector<uint8_t>& data);

@@ -2,6 +2,7 @@
 #include "device-libusb.h"
 #include "proxy.h"
 #include "misc.h"
+#include "command-utils.h"
 
 int verbose_level = 0;
 bool please_stop_ep0 = false;
@@ -10,6 +11,15 @@ volatile bool please_stop_eps = false; // Use volatile to mark as atomic.
 bool injection_enabled = false;
 std::string injection_file = "injection.json";
 Json::Value injection_config;
+
+bool command_grouping_enabled = true;
+//std::unordered_map<std::string, std::string> commandColorMapping;
+std::string command_grouping_file = "command_groups.json";
+Json::Value command_grouping_config;
+
+bool filtering_enabled = true;
+std::string filtering_file = "filter_rules.json";
+Json::Value filtering_config;
 
 bool customized_config_enabled = false;
 std::string customized_config_file = "config.json";
@@ -252,6 +262,55 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		ifs.close();
+	}
+
+	if (command_grouping_enabled) {
+		printf("Command grouping enabled\n");
+		if (command_grouping_file.empty()) {
+			printf("Command grouping file not specified. Grouping will be disabled.\n");
+			command_grouping_enabled = false;
+		} else {
+			struct stat buffer;
+			if (stat(command_grouping_file.c_str(), &buffer) != 0) {
+				printf("Command grouping file %s not found. Grouping will be disabled.\n", command_grouping_file.c_str());
+				command_grouping_enabled = false;
+			} else {
+				Json::Reader jsonReader;
+				std::ifstream ifs(command_grouping_file.c_str());
+				if (jsonReader.parse(ifs, command_grouping_config)) {
+					printf("Parsed command grouping file: %s\n", command_grouping_file.c_str());
+					loadCommandGroups(command_grouping_config, commandColorMapping);
+				} else {
+					printf("Error parsing command grouping file: %s. Grouping will be disabled.\n", command_grouping_file.c_str());
+					command_grouping_enabled = false;
+				}
+				ifs.close();
+			}
+		}
+	}
+
+	if (filtering_enabled) {
+		printf("Filtering enabled\n");
+		if (filtering_file.empty()) {
+			printf("Filtering file not specified. Filtering will be disabled.\n");
+			filtering_enabled = false;
+		} else {
+			struct stat buffer;
+			if (stat(filtering_file.c_str(), &buffer) != 0) {
+				printf("Filtering file %s not found. Filtering will be disabled.\n", filtering_file.c_str());
+				filtering_enabled = false;
+			} else {
+				Json::Reader jsonReader;
+				std::ifstream ifs(filtering_file.c_str());
+				if (jsonReader.parse(ifs, filtering_config)) {
+					printf("Parsed filtering file: %s\n", filtering_file.c_str());
+				} else {
+					printf("Error parsing filtering file: %s. Filtering will be disabled.\n", filtering_file.c_str());
+					filtering_enabled = false;
+				}
+				ifs.close();
+			}
+		}
 	}
 
 	if (customized_config_enabled) {

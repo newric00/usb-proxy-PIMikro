@@ -3,6 +3,7 @@
 #include "host-raw-gadget.h"
 #include "device-libusb.h"
 #include "GCS-parser.h"
+#include "command-utils.h"
 #include "misc.h"
 
 void injection(struct usb_raw_transfer_io &io, Json::Value patterns, std::string replacement_hex, bool &data_modified) {
@@ -208,18 +209,18 @@ void *ep_loop_write(void *arg) {
 			memcpy(injectionData,injectionMessage.c_str(), injectionLength);
 
 			//send injected message
-			//std::cout << std::hex << ep.bEndpointAddress << " | Message: " << injectionMessage << std::endl;
 			int rv = send_data(ep.bEndpointAddress, ep.bmAttributes, injectionData, injectionLength, USB_REQUEST_TIMEOUT);
 
 			if (rv < 0) {
 				perror("Error injecting message");
 			} else {
-				std::string parsedInjection = parseGCSCommand(injectionMessage);
+				ParsedCommand parsedInjection = parseGCSCommand(injectionMessage);
 
 				//log injected command
-				printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
+				printf("EP%x(%s_%s): read %d bytes from host \033[1mInjected: ", ep.bEndpointAddress,
 				transfer_type.c_str(), dir.c_str(), static_cast<int>(injectionLength));
-				printf("Injected %s", parsedInjection.c_str());
+				printCommand(parsedInjection);
+				printf("\033[0m");
 			}
 
 			if (injectionData)
@@ -339,12 +340,12 @@ void *ep_loop_read(void *arg) {
 				} else {
 					std::string aggregatedCommand = commandBuffer + commandFragment;
 					commandBuffer.clear();
-					std::string parsedCommand = parseGCSCommand(aggregatedCommand);
+					ParsedCommand parsedCommand = parseGCSCommand(aggregatedCommand);
 
 					//log bulk out command
 					printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
 					transfer_type.c_str(), dir.c_str(), rv);
-					printf("%s", parsedCommand.c_str());
+					printCommand(parsedCommand);
 				}					 
 
 				io.inner.length = rv;
