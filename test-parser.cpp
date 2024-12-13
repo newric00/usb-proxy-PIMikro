@@ -2,11 +2,11 @@
 #include "GCS-parser.h"
 #include "command-utils.h"  // Includes printCommand and other utilities
 
-void testPrintCommand(const std::string &command) {
+void testPrintCommand(const std::string &commandCode) {
     // Use ParsedCommand to create a structure for testing
     ParsedCommand testCommand;
-    testCommand.command = command;              // Raw command for determining color
-    testCommand.decoratedCommand = "Command: " + command;  // Decorated command for printing
+    testCommand.commandCode = commandCode;              // Raw command for determining color
+    testCommand.decoratedCommand = "Command: " + commandCode;  // Decorated command for printing
 
     printCommand(testCommand);  // Test printing
     std::cout << std::endl; // For spacing

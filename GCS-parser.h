@@ -13,13 +13,21 @@ struct GCSCommandSurvey {
 };
 
 struct ParsedCommand {
-    std::string command; //command byte code or mnemonic
+    std::string commandCode; //command byte code or mnemonic
     std::string decoratedCommand; //response with parsed arguments and long description
+    std::string controllerAddress;
+    std::string hostAddress; //should always = "0"
 };
 
 struct ParsedResponse {
     std::string response;
     size_t responseLength;
+};
+
+struct LastCommandInfo {
+    std::string commandCode; //command byte code or mnemonic
+    std::string controllerAddress;
+    std::string hostAddress; //should always = "0"
 };
 
 std::string processCommand(
@@ -31,8 +39,8 @@ std::string processCommand(
     size_t tokenIndex
 );
 ParsedCommand parseGCSCommand(const std::string& command);
-ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data);
+ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data, LastCommandInfo& lastCommand);
 std::string cleanResponse(const std::string& response);
-std::optional<ParsedResponse> handleBulkInResponse(const std::vector<uint8_t>& data);
+std::optional<ParsedResponse> handleBulkInResponse(const std::vector<uint8_t>& data, LastCommandInfo& lastCommand);
 std::optional<GCSCommandSurvey> getCommandInfo(const std::string& command);
 #endif

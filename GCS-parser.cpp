@@ -116,9 +116,9 @@ const std::unordered_map<std::string, GCSCommandSurvey> multiCharQueries = {
     {"VEL?", {"Get Velocity", {"AxisID"}}},
 };
 
-std::optional<GCSCommandSurvey> getCommandInfo(const std::string& command) {
-    if (command.size() == 1) {
-        uint8_t singleByte = static_cast<uint8_t>(command[0]);
+std::optional<GCSCommandSurvey> getCommandInfo(const std::string& commandCode) {
+    if (commandCode.size() == 1) {
+        uint8_t singleByte = static_cast<uint8_t>(commandCode[0]);
         if (singleByteCommands.find(singleByte) != singleByteCommands.end()) {
             return singleByteCommands.at(singleByte);
         }
@@ -126,29 +126,27 @@ std::optional<GCSCommandSurvey> getCommandInfo(const std::string& command) {
             return singleByteQueries.at(singleByte);
         }
     }
-    if (command.find('?') != std::string::npos) {
-        if (multiCharQueries.find(command) != multiCharQueries.end()) {
-            return multiCharQueries.at(command);
+    if (commandCode.find('?') != std::string::npos) {
+        if (multiCharQueries.find(commandCode) != multiCharQueries.end()) {
+            return multiCharQueries.at(commandCode);
         }
     }
-    if (multiCharCommands.find(command) != multiCharCommands.end()) {
-        return multiCharCommands.at(command);
+    if (multiCharCommands.find(commandCode) != multiCharCommands.end()) {
+        return multiCharCommands.at(commandCode);
     }
-    //command not found
+    //command code not found
     //std::cout << "Command not found: " << command << std::endl; // debugging
     return std::nullopt;
 }
 
 std::string processCommand(
-    const std::string& command,
-    const std::string& controllerAddress,
-    const std::string& hostAddress,
+    const std::string& commandCode,
     const std::optional<GCSCommandSurvey>& commandInfo,
     const std::vector<std::string>& tokens,
     size_t tokenIndex
 ) {
     if (commandInfo) {
-        std::string formatted = "Command: " + command + " | " + commandInfo->longDescription;
+        std::string formatted = "Command: " + commandCode + " | " + commandInfo->longDescription;
     
         for (size_t i = tokenIndex; i < tokens.size(); ++i) {
             size_t argIndex = i - tokenIndex;
@@ -160,11 +158,10 @@ std::string processCommand(
         }
         return formatted + "\n";
     }
-    return "Unrecognized command: " + command + "\n";
+    return "Unrecognized command: " + commandCode + "\n";
 }
 
 ParsedCommand parseGCSCommand(const std::string& command) {
-
     std::stringstream ss(command);
     std::string token;
     std::vector<std::string> tokens;
@@ -174,7 +171,7 @@ ParsedCommand parseGCSCommand(const std::string& command) {
     }
 
     if (tokens.empty()) {
-        return {"???","Unrecogonized command: no data\n"};
+        return {"???","Unrecogonized command: no data\n", "?", "?"};
     }
     //check if controller or contoller host addresses supplied
     size_t tokenIndex = 0;
@@ -190,7 +187,7 @@ ParsedCommand parseGCSCommand(const std::string& command) {
 
     //at least one token remains?
     if (tokens.size() <= tokenIndex) {
-        return {"???","Unrecogonized command: no data\n"}; 
+        return {"???","Unrecogonized command: no data\n", "?", "?"}; 
     }
 
     //remaining tokens contain command and arguments
@@ -199,17 +196,19 @@ ParsedCommand parseGCSCommand(const std::string& command) {
         uint8_t singleByte = static_cast<uint8_t>(tokens[tokenIndex][0]);
         auto commandInfo = getCommandInfo(std::string(1, static_cast<char>(singleByte)));
         return {"#" + std::to_string(singleByte),
-                processCommand("#" + std::to_string(singleByte), controllerAddress, hostAddress, commandInfo, tokens, tokenIndex + 1)};
+                processCommand("#" + std::to_string(singleByte), commandInfo, tokens, tokenIndex + 1),
+                controllerAddress, hostAddress};
     }
     //multicharacter commands
     if (tokens.size() > tokenIndex) {
         std::string commandMnemonic = tokens[tokenIndex++];
         auto commandInfo = getCommandInfo(commandMnemonic);
         return {commandMnemonic,
-                processCommand(commandMnemonic, controllerAddress, hostAddress, commandInfo, tokens, tokenIndex)};
+                processCommand(commandMnemonic, commandInfo, tokens, tokenIndex),
+                controllerAddress, hostAddress};
     }
     //command not recognized
-    return {"???","Unrecogonized command: " + command + "\n"};
+    return {"???","Unrecogonized command: " + command + "\n", "?", "?"};
 }
 
 std::string cleanResponse(const std::string& response) {
@@ -220,33 +219,39 @@ std::string cleanResponse(const std::string& response) {
     return cleanedResponse;
 }
 
-ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data) {
+ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data, LastCommandInfo& lastCommandInfo) {
     std::string response(data.begin(), data.end());
     std::string cleanedResponse = cleanResponse(response);
     size_t responseLength = cleanedResponse.size();
+    if (lastCommandInfo.controllerAddress != "?") {
+        
+        //printf(lastCommandInfo.hostAddress.c_str());
+        //lastCommandInfo.controllerAddress
+    }
     return {"Response: " + cleanedResponse, responseLength};
 }
 
-std::optional<ParsedResponse> handleBulkInResponse(const std::vector<uint8_t>& data) {
+std::optional<ParsedResponse> handleBulkInResponse(const std::vector<uint8_t>& data, LastCommandInfo& lastCommandInfo) {
     std::string responseFragment(data.begin(), data.end());
     static std::string aggregatedResponse;
-    
-    //if simple stay-awake command.  Do not aggregate.
+    static std::string controllerAddress;
+
+    std::cout << "ControllerAddress (in function): " << lastCommandInfo.controllerAddress << std::endl;
+    //ignore "`" character used for simple stay-awake responses.  Do not aggregate.
     responseFragment.erase(std::remove_if(responseFragment.begin(), responseFragment.end(),
         [](unsigned char c) { return c < 17 && c != '\n'; }), responseFragment.end());
 
-    if (responseFragment == "`") {
-        return std::nullopt;
+    if (aggregatedResponse.empty()) {
+        controllerAddress = lastCommandInfo.controllerAddress;
     }
-
     aggregatedResponse += responseFragment;
     //multi-line response are terminated with a LF character.  Intermediate lines with a white space followed by LF
     if (!aggregatedResponse.empty() && aggregatedResponse.back() == '\n') {
         if (aggregatedResponse.size() > 1 && aggregatedResponse[aggregatedResponse.size() - 2] != ' ') {
-            //std::string cleanedResponse = cleanResponse(aggregatedResponse);
             std::vector<uint8_t> aggregatedData(aggregatedResponse.begin(), aggregatedResponse.end());
-            ParsedResponse parsedResponse = parseGCSResponse(aggregatedData);
+            ParsedResponse parsedResponse = parseGCSResponse(aggregatedData, lastCommandInfo);
             aggregatedResponse.clear();
+            //std::cout << "Address: " << address << std::endl;
             return parsedResponse;
         }
         //incomplete response (no terminating LF without preceding whitespace)

@@ -3,6 +3,7 @@
 #include <deque>
 
 #include "misc.h"
+#include "GCS-parser.h"
 
 /*----------------------------------------------------------------------*/
 
@@ -108,6 +109,10 @@ struct thread_info {
 	std::string			dir;
 	std::deque<usb_raw_transfer_io> *data_queue;
 	std::mutex			*data_mutex;
+
+	//for coupling responses to command
+	LastCommandInfo *lastCommandInfo;
+	std::mutex *lastCommandMutex; 
 
 	//for generated injections
 	std::deque<std::string> *injectionQueue;

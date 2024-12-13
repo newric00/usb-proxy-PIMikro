@@ -117,6 +117,10 @@ void *ep_loop_write(void *arg) {
 	std::deque<std::string> *injectionQueue = thread_info.injectionQueue;
 	std::mutex *injectionMutex = thread_info.injectionMutex;
 
+	//last command information
+	std::mutex *lastCommandMutex = thread_info.lastCommandMutex;
+	LastCommandInfo *lastCommandInfo = thread_info.lastCommandInfo;
+
 	printf("Start writing thread for EP%02x, thread id(%d)\n",
 		ep.bEndpointAddress, gettid());
 
@@ -161,9 +165,16 @@ void *ep_loop_write(void *arg) {
 				exit(EXIT_FAILURE);
 			}
 			else {
+
+			lastCommandMutex->lock();
+			//LastCommandInfo *lastCommandInfo = thread_info.lastCommandInfo;
+			std::string controllerAddress =  lastCommandInfo->controllerAddress;
+			std::cout << "ControllerAddress (out function): " << controllerAddress << std::endl;
+			lastCommandMutex->unlock();
+
 					//parse bulk in response
 					 std::vector<uint8_t> responseFragment(io.data, io.data + rv);
-					 auto parsedResponse = handleBulkInResponse(responseFragment);
+					 auto parsedResponse = handleBulkInResponse(responseFragment, *lastCommandInfo);
 
 					//std::cout << "Raw Response (hex:) ";
 					//for (const char& c : *parsedResponse) {
@@ -216,6 +227,12 @@ void *ep_loop_write(void *arg) {
 			} else {
 				ParsedCommand parsedInjection = parseGCSCommand(injectionMessage);
 
+				lastCommandMutex->lock();
+				lastCommandInfo->commandCode = parsedInjection.commandCode;
+				lastCommandInfo->controllerAddress = parsedInjection.controllerAddress;
+				lastCommandInfo->hostAddress = parsedInjection.hostAddress;
+				lastCommandMutex->unlock();
+
 				//log injected command
 				printf("EP%x(%s_%s): read %d bytes from host \033[1mInjected: ", ep.bEndpointAddress,
 				transfer_type.c_str(), dir.c_str(), static_cast<int>(injectionLength));
@@ -246,6 +263,10 @@ void *ep_loop_read(void *arg) {
 	//injection queue
 	std::deque<std::string> *injectionQueue = thread_info.injectionQueue;
 	std::mutex *injectionMutex = thread_info.injectionMutex;
+
+	//last command information
+	LastCommandInfo *lastCommandInfo = thread_info.lastCommandInfo;
+	std::mutex *lastCommandMutex = thread_info.lastCommandMutex;
 
 	static std::string commandBuffer; //for aggregating single-byte commands
 
@@ -342,6 +363,14 @@ void *ep_loop_read(void *arg) {
 					commandBuffer.clear();
 					ParsedCommand parsedCommand = parseGCSCommand(aggregatedCommand);
 
+					//store latest command info
+					lastCommandMutex->lock();
+					lastCommandInfo->commandCode = parsedCommand.commandCode;
+					lastCommandInfo->controllerAddress = parsedCommand.controllerAddress;
+					lastCommandInfo->hostAddress = parsedCommand.hostAddress;
+					lastCommandMutex->unlock();
+
+					std::cout << "ControllerAddress (read function): " << lastCommandInfo->controllerAddress << std::endl;
 					//log bulk out command
 					printf("EP%x(%s_%s): read %d bytes from host ", ep.bEndpointAddress,
 					transfer_type.c_str(), dir.c_str(), rv);
@@ -387,6 +416,10 @@ void process_eps(int fd, int config, int interface, int altsetting) {
 		//injection queue memory allocation
 		ep->thread_info.injectionQueue = new std::deque<std::string>;
 		ep->thread_info.injectionMutex = new std::mutex;
+
+		//Command response coupling memory allocation
+		ep->thread_info.lastCommandInfo = new LastCommandInfo;
+		ep->thread_info.lastCommandMutex = new std::mutex;
 
 		switch (usb_endpoint_type(&ep->endpoint)) {
 		case USB_ENDPOINT_XFER_ISOC:
@@ -463,6 +496,10 @@ void terminate_eps(int fd, int config, int interface, int altsetting) {
 		//injection queue memory deallocation
 		delete ep->thread_info.injectionQueue;
 		delete ep->thread_info.injectionMutex;
+
+		//Command response coupling memory deallocation
+		delete ep->thread_info.lastCommandInfo;
+		delete ep->thread_info.lastCommandMutex;
 	}
 
 	please_stop_eps = false;

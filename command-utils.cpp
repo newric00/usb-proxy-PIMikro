@@ -40,6 +40,6 @@ std::string getCommandColor(const std::string& command) {
 }
 
 void printCommand(const ParsedCommand& parsedCommand) {
-    std::string color = getCommandColor(parsedCommand.command);
+    std::string color = getCommandColor(parsedCommand.commandCode);
     printf("%s%s%s", color.c_str(), parsedCommand.decoratedCommand.c_str(), colorMap.at("reset").c_str());
 }
