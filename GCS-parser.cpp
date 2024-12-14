@@ -6,6 +6,7 @@
 #include <optional>
 #include <algorithm>
 #include "GCS-parser.h"
+#include "command-utils.h"
 
 //static variables for bulk-in message aggregation
 static std::string responseBuffer;
@@ -175,7 +176,7 @@ ParsedCommand parseGCSCommand(const std::string& command) {
     }
     //check if controller or contoller host addresses supplied
     size_t tokenIndex = 0;
-    std::string controllerAddress, hostAddress;
+    std::string controllerAddress ="?", hostAddress = "?";
     //Controller Address
     if (std::all_of(tokens[0].begin(), tokens[0].end(), ::isdigit)) {
         controllerAddress = tokens[tokenIndex++];
@@ -219,39 +220,46 @@ std::string cleanResponse(const std::string& response) {
     return cleanedResponse;
 }
 
-ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data, LastCommandInfo& lastCommandInfo) {
+ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data, const bool& hasAddress) {
     std::string response(data.begin(), data.end());
     std::string cleanedResponse = cleanResponse(response);
     size_t responseLength = cleanedResponse.size();
-    if (lastCommandInfo.controllerAddress != "?") {
-        
-        //printf(lastCommandInfo.hostAddress.c_str());
-        //lastCommandInfo.controllerAddress
+
+    if (hasAddress == true) {
+        std::stringstream ss(cleanedResponse);
+        std::string hostAddress, controllerAddress, remainingResponse;
+        ss >> hostAddress >> controllerAddress;
+
+        std::getline(ss >> std::ws, remainingResponse);
+        return {"Response: " + remainingResponse +"\n", responseLength};
     }
+
     return {"Response: " + cleanedResponse, responseLength};
 }
 
-std::optional<ParsedResponse> handleBulkInResponse(const std::vector<uint8_t>& data, LastCommandInfo& lastCommandInfo) {
+std::optional<ParsedResponse> handleBulkInResponse(const std::vector<uint8_t>& data, LastCommandInfo& lastCommand) {
     std::string responseFragment(data.begin(), data.end());
     static std::string aggregatedResponse;
-    static std::string controllerAddress;
+    static bool addressInResponse;
 
-    std::cout << "ControllerAddress (in function): " << lastCommandInfo.controllerAddress << std::endl;
     //ignore "`" character used for simple stay-awake responses.  Do not aggregate.
     responseFragment.erase(std::remove_if(responseFragment.begin(), responseFragment.end(),
         [](unsigned char c) { return c < 17 && c != '\n'; }), responseFragment.end());
 
     if (aggregatedResponse.empty()) {
-        controllerAddress = lastCommandInfo.controllerAddress;
+        //check first fragment for addresses if previous command included a controllerAddress
+        if (lastCommand.controllerAddress !="?") {
+            addressInResponse = true;
+        }
     }
     aggregatedResponse += responseFragment;
     //multi-line response are terminated with a LF character.  Intermediate lines with a white space followed by LF
     if (!aggregatedResponse.empty() && aggregatedResponse.back() == '\n') {
         if (aggregatedResponse.size() > 1 && aggregatedResponse[aggregatedResponse.size() - 2] != ' ') {
             std::vector<uint8_t> aggregatedData(aggregatedResponse.begin(), aggregatedResponse.end());
-            ParsedResponse parsedResponse = parseGCSResponse(aggregatedData, lastCommandInfo);
+            ParsedResponse parsedResponse = parseGCSResponse(aggregatedData, addressInResponse);
             aggregatedResponse.clear();
-            //std::cout << "Address: " << address << std::endl;
+
             return parsedResponse;
         }
         //incomplete response (no terminating LF without preceding whitespace)

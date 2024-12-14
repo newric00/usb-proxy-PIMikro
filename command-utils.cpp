@@ -1,5 +1,12 @@
-#include "command-utils.h"
+
 #include <iostream>
+#include <mutex>
+#include <string>
+#include "command-utils.h"
+
+// Last command passing for response parsing
+LastCommandInfo lastCommandInfo;
+std::mutex lastCommandMutex;
 
 // Terminal escape sequences for colors
 const std::unordered_map<std::string, std::string> colorMap = {

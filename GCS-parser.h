@@ -7,6 +7,12 @@
 #include <unordered_map>
 #include <algorithm>
 
+struct LastCommandInfo {
+    std::string commandCode; //command byte code or mnemonic
+    std::string controllerAddress;
+    std::string hostAddress; //should always = "0"
+};
+
 struct GCSCommandSurvey {
     std::string longDescription;
     std::vector<std::string> argumentNames;
@@ -24,12 +30,6 @@ struct ParsedResponse {
     size_t responseLength;
 };
 
-struct LastCommandInfo {
-    std::string commandCode; //command byte code or mnemonic
-    std::string controllerAddress;
-    std::string hostAddress; //should always = "0"
-};
-
 std::string processCommand(
     const std::string& command,
     const std::string& controllerAddress,
@@ -39,7 +39,7 @@ std::string processCommand(
     size_t tokenIndex
 );
 ParsedCommand parseGCSCommand(const std::string& command);
-ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data, LastCommandInfo& lastCommand);
+ParsedResponse parseGCSResponse(const std::vector<uint8_t>& data, const bool& hasAddress);
 std::string cleanResponse(const std::string& response);
 std::optional<ParsedResponse> handleBulkInResponse(const std::vector<uint8_t>& data, LastCommandInfo& lastCommand);
 std::optional<GCSCommandSurvey> getCommandInfo(const std::string& command);
